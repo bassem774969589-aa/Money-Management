@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام تتبع المصروفات والديون الشخصية</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            cairo: ['Cairo', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,.10), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(168,85,247,.08), transparent 28%),
+        #f8fafc;
+      color: #0f172a;
+    }
+
+    .glass {
+      background: rgba(255,255,255,.90);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(226,232,240,.9);
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(15,23,42,.05);
+    }
+
+    .input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 13px;
+      outline: none;
+      transition: .2s;
+      background: #fff;
+    }
+
+    .input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+    }
+
+    .btn {
+      border-radius: 12px;
+      padding: 10px 15px;
+      font-weight: 700;
+      transition: .2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: pointer;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover { background: #1d4ed8; }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .btn-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .btn-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .btn-purple {
+      background: #ede9fe;
+      color: #6d28d9;
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: "";
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 999px;
+      left: -35px;
+      bottom: -45px;
+      background: rgba(255,255,255,.18);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: inherit;
+      transition: width .35s ease;
+    }
+
+    .tab-btn {
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .tab-btn.active {
+      background: #0f172a;
+      color: #fff;
+    }
+
+    .modal-backdrop {
+      background: rgba(15,23,42,.55);
+      backdrop-filter: blur(5px);
+    }
+
+    .toast {
+      animation: toastIn .25s ease;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .empty-state {
+      border: 2px dashed #e2e8f0;
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+      color: #94a3b8;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .setup-row {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .card { border-radius: 16px; }
+      .btn { padding: 9px 12px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 glass">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg">
+            <i class="fa-solid fa-wallet text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-extrabold">إدارة المصروفات والديون</h1>
+            <p class="text-xs sm:text-sm text-slate-500">متابعة راتبك والتزاماتك المالية بسهولة</p>
+          </div>
+        </div>
+
+        <div class="text-center sm:text-left">
+          <div class="text-xs text-slate-400">تصميم وتطوير</div>
+          <div class="font-extrabold text-blue-600">باسم لطف 774969589</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Salary -->
+    <section class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+          <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+        <div>
+          <h2 class="font-extrabold text-lg">الراتب الشهري</h2>
+          <p class="text-sm text-slate-500">أدخل راتبك الأساسي ليتم احتساب الصافي تلقائيًا</p>
+        </div>
+      </div>
+
+      <form id="salaryForm" class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+        <input
+          id="salaryInput"
+          type="number"
+          min="0"
+          step="0.01"
+          class="input"
+          placeholder="مثال: 2500"
+          required
+        >
+        <button class="btn btn-primary" type="submit">
+          <i class="fa-solid fa-floppy-disk"></i>
+          حفظ الراتب
+        </button>
+      </form>
+    </section>
+
+    <!-- Statistics -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-extrabold text-xl">الملخص المالي</h2>
+        <span id="currentMonthLabel" class="text-sm text-slate-500"></span>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+
+        <div class="stat-card rounded-2xl bg-blue-600 text-white p-4 shadow">
+          <div class="text-sm opacity-80">الراتب</div>
+          <div id="statSalary" class="text-xl font-extrabold mt-2">0</div>
+        </div>
+
+        <div class="stat-card rounded-2xl bg-sky-500 text-white p-4 shadow">
+          <div class="text-sm opacity-80">المصروفات الأساسية</div>
+          <div id="statExpenses" class="text-xl font-extrabold mt-2">0</div>
+        </div>
+
+        <div class="stat-card rounded-2xl bg-rose-500 text-white p-4 shadow">
+          <div class="text-sm opacity-80">الديون الحالية</div>
+          <div id="statCurrentDebts" class="text-xl font-extrabold mt-2">0</div>
+        </div>
+
+        <div class="stat-card rounded-2xl bg-violet-600 text-white p-4 shadow">
+          <div class="text-sm opacity-80">أقساط من الراتب</div>
+          <div id="statSalaryInstallments" class="text-xl font-extrabold mt-2">0</div>
+        </div>
+
+        <div class="stat-card rounded-2xl bg-amber-500 text-white p-4 shadow">
+          <div class="text-sm opacity-80">سداد ديون سابقة هذا الشهر</div>
+          <div id="statPreviousPayments" class="text-xl font-extrabold mt-2">0</div>
+        </div>
+
+        <div id="netStatCard" class="stat-card rounded-2xl bg-emerald-600 text-white p-4 shadow">
+          <div class="text-sm opacity-80">الصافي الفعلي</div>
+          <div id="statNet" class="text-xl font-extrabold mt-2">0</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Basic Expenses -->
+    <section class="card p-5">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+            <i class="fa-solid fa-cart-shopping"></i>
+          </div>
+          <div>
+            <h2 class="font-extrabold text-lg">المصروفات الأساسية</h2>
+            <p class="text-sm text-slate-500">مصروفات تخصم مباشرة من الراتب</p>
+          </div>
+        </div>
+        <span class="badge bg-sky-100 text-sky-700">
+          <i class="fa-solid fa-minus"></i>
+          تخصم فورًا
+        </span>
+      </div>
+
+      <form id="expenseForm" class="grid grid-cols-1 md:grid-cols-[1fr_220px_auto] gap-3 mb-5">
+        <input id="expenseName" class="input" placeholder="اسم المصروف" required>
+        <input id="expenseAmount" type="number" min="0.01" step="0.01" class="input" placeholder="المبلغ" required>
+        <button class="btn btn-primary" type="submit">
+          <i class="fa-solid fa-plus"></i>
+          إضافة
+        </button>
+      </form>
+
+      <div id="expensesList"></div>
+    </section>
+
+    <!-- Current Debts -->
+    <section class="card p-5">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <i class="fa-solid fa-credit-card"></i>
+          </div>
+          <div>
+            <h2 class="font-extrabold text-lg">الديون الحالية</h2>
+            <p class="text-sm text-slate-500">أقساط شهرية ثابتة تخصم من الراتب</p>
+          </div>
+        </div>
+        <span class="badge bg-rose-100 text-rose-700">قسط شهري</span>
+      </div>
+
+      <form id="currentDebtForm" class="grid grid-cols-1 md:grid-cols-[1fr_220px_auto] gap-3 mb-5">
+        <input id="currentDebtName" class="input" placeholder="اسم الدائن أو الدين" required>
+        <input id="currentDebtAmount" type="number" min="0.01" step="0.01" class="input" placeholder="القسط الشهري" required>
+        <button class="btn btn-primary" type="submit">
+          <i class="fa-solid fa-plus"></i>
+          إضافة
+        </button>
+      </form>
+
+      <div id="currentDebtsList"></div>
+    </section>
+
+    <!-- Salary Installments -->
+    <section class="card p-5 border-violet-200">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+          </div>
+          <div>
+            <h2 class="font-extrabold text-lg">أقساط تُخصم من الراتب</h2>
+            <p class="text-sm text-slate-500">
+              أقساط شهرية مستقلة يتم خصمها تلقائيًا من الصافي كل شهر
+            </p>
+          </div>
+        </div>
+
+        <span class="badge bg-violet-100 text-violet-700">
+          <i class="fa-solid fa-rotate"></i>
+          خصم تلقائي
+        </span>
+      </div>
+
+      <form id="salaryInstallmentForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+        <input id="salaryInstallmentName" class="input" placeholder="اسم القسط" required>
+
+        <input
+          id="salaryInstallmentAmount"
+          type="number"
+          min="0.01"
+          step="0.01"
+          class="input"
+          placeholder="القسط الشهري"
+          required
+        >
+
+        <input
+          id="salaryInstallmentTotal"
+          type="number"
+          min="0"
+          step="1"
+          class="input"
+          placeholder="إجمالي الأقساط (0 = مستمر)"
+        >
+
+        <input
+          id="salaryInstallmentStart"
+          type="month"
+          class="input"
+          title="شهر بداية القسط"
+        >
+
+        <button class="btn btn-purple" type="submit">
+          <i class="fa-solid fa-plus"></i>
+          إضافة القسط
+        </button>
+      </form>
+
+      <div class="bg-violet-50 border border-violet-100 rounded-xl p-3 mb-5 text-sm text-violet-800">
+        <i class="fa-solid fa-circle-info ml-1"></i>
+        إذا حددت عدد الأقساط، سيحسب النظام الأقساط تلقائيًا حسب شهر البداية،
+        ويتوقف الخصم عند انتهاء العدد. اترك العدد <strong>0</strong> لقسط مستمر.
+      </div>
+
+      <div id="salaryInstallmentsList"></div>
+    </section>
+
+    <!-- Previous Debts -->
+    <section class="card p-5">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-11 h-11 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+        <div>
+          <h2 class="font-extrabold text-lg">الديون السابقة</h2>
+          <p class="text-sm text-slate-500">إدارة الديون القديمة وسجل دفعاتها</p>
+        </div>
+      </div>
+
+      <div class="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit mb-5">
+        <button id="pendingTab" class="tab-btn active" type="button">
+          <i class="fa-solid fa-hourglass-half ml-1"></i>
+          غير مسددة
+        </button>
+        <button id="archiveTab" class="tab-btn" type="button">
+          <i class="fa-solid fa-box-archive ml-1"></i>
+          الأرشيف
+        </button>
+      </div>
+
+      <!-- Pending -->
+      <div id="pendingPanel">
+        <form id="paymentForm" class="grid grid-cols-1 md:grid-cols-[1fr_220px_auto] gap-3 mb-5">
+          <select id="paymentDebtSelect" class="input">
+            <option value="">اختر الدين</option>
+          </select>
+
+          <input
+            id="paymentAmount"
+            type="number"
+            min="0.01"
+            step="0.01"
+            class="input"
+            placeholder="مبلغ السداد"
+            disabled
+          >
+
+          <button id="paymentSubmit" class="btn btn-warning" type="submit" disabled>
+            <i class="fa-solid fa-coins"></i>
+            تسديد
+          </button>
+        </form>
+
+        <div id="pendingDebtsList"></div>
+
+        <div class="border-t border-slate-200 mt-6 pt-5">
+          <button id="addPreviousDebtBtn" class="btn btn-secondary" type="button">
+            <i class="fa-solid fa-plus"></i>
+            إضافة دين سابق
+          </button>
+
+          <form id="previousDebtForm" class="hidden mt-4 grid grid-cols-1 md:grid-cols-[1fr_220px_auto] gap-3">
+            <input id="previousDebtName" class="input" placeholder="اسم الدائن" required>
+            <input id="previousDebtAmount" type="number" min="0.01" step="0.01" class="input" placeholder="إجمالي الدين" required>
+            <button class="btn btn-primary" type="submit">
+              <i class="fa-solid fa-plus"></i>
+              إضافة الدين
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Archive -->
+      <div id="archivePanel" class="hidden">
+        <div id="archivedDebtsList"></div>
+      </div>
+    </section>
+
+    <!-- Tools -->
+    <section class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-11 h-11 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+        <div>
+          <h2 class="font-extrabold text-lg">أدوات النظام</h2>
+          <p class="text-sm text-slate-500">تهيئة البيانات وإدارة البيانات المحفوظة</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <button id="setupBtn" class="btn btn-primary" type="button">
+          <i class="fa-solid fa-sliders"></i>
+          تهيئة البيانات السابقة
+        </button>
+
+        <button id="resetBtn" class="btn btn-danger" type="button">
+          <i class="fa-solid fa-trash-can"></i>
+          تصفير كل البيانات
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="text-center py-8 text-sm text-slate-500">
+    <div class="font-bold text-slate-700">تصميم باسم لطف 774969589</div>
+    <div class="mt-1">جميع البيانات تحفظ محليًا على جهازك</div>
+  </footer>
+
+  <!-- Setup Modal -->
+  <div id="setupModal" class="hidden fixed inset-0 z-50 modal-backdrop items-center justify-center p-4">
+    <div class="bg-white w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl">
+
+      <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-5 py-4 flex items-center justify-between">
+        <div>
+          <h2 class="font-extrabold text-xl">تهيئة البيانات</h2>
+          <p class="text-sm text-slate-500">إدخال البيانات الافتتاحية دفعة واحدة</p>
+        </div>
+
+        <button id="closeSetupBtn" class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" type="button">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="setupForm" class="p-5 space-y-6">
+
+        <!-- Salary -->
+        <div>
+          <h3 class="font-extrabold mb-3">
+            <i class="fa-solid fa-money-bill text-emerald-600 ml-1"></i>
+            الراتب
+          </h3>
+
+          <input id="setupSalary" type="number" min="0" step="0.01" class="input" placeholder="الراتب الشهري">
+        </div>
+
+        <!-- Expenses -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-extrabold">
+              <i class="fa-solid fa-cart-shopping text-sky-600 ml-1"></i>
+              المصروفات الأساسية
+            </h3>
+
+            <button id="addSetupExpense" class="btn btn-secondary text-sm" type="button">
+              <i class="fa-solid fa-plus"></i>
+              إضافة صف
+            </button>
+          </div>
+
+          <div id="setupExpensesRows" class="space-y-2"></div>
+        </div>
+
+        <!-- Current Debts -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-extrabold">
+              <i class="fa-solid fa-credit-card text-rose-600 ml-1"></i>
+              الديون الحالية
+            </h3>
+
+            <button id="addSetupCurrentDebt" class="btn btn-secondary text-sm" type="button">
+              <i class="fa-solid fa-plus"></i>
+              إضافة صف
+            </button>
+          </div>
+
+          <div id="setupCurrentDebtRows" class="space-y-2"></div>
+        </div>
+
+        <!-- Salary Installments -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-extrabold">
+              <i class="fa-solid fa-file-invoice-dollar text-violet-600 ml-1"></i>
+              أقساط تُخصم من الراتب
+            </h3>
+
+            <button id="addSetupSalaryInstallment" class="btn btn-secondary text-sm" type="button">
+              <i class="fa-solid fa-plus"></i>
+              إضافة صف
+            </button>
+          </div>
+
+          <div id="setupSalaryInstallmentRows" class="space-y-2"></div>
+        </div>
+
+        <!-- Previous Debts -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-extrabold">
+              <i class="fa-solid fa-clock-rotate-left text-amber-600 ml-1"></i>
+              الديون السابقة
+            </h3>
+
+            <button id="addSetupPreviousDebt" class="btn btn-secondary text-sm" type="button">
+              <i class="fa-solid fa-plus"></i>
+              إضافة صف
+            </button>
+          </div>
+
+          <div id="setupPreviousDebtRows" class="space-y-2"></div>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+          <div class="font-bold mb-1">
+            <i class="fa-solid fa-circle-info ml-1"></i>
+            طريقة الحفظ
+          </div>
+          <div>
+            اختر ما إذا كنت تريد استبدال البيانات الحالية أو إضافة البيانات فوق الموجود.
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button id="setupReplaceBtn" class="btn btn-primary" type="button">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            استبدال البيانات الحالية
+          </button>
+
+          <button id="setupMergeBtn" class="btn btn-success" type="button">
+            <i class="fa-solid fa-layer-group"></i>
+            إضافة فوق الموجود
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toastContainer" class="fixed bottom-5 left-5 z-[70] space-y-2 max-w-sm"></div>
+
+  <script>
+    'use strict';
+
+    const STORAGE_KEY = 'financeTrackerData_v5';
+
+    let state = {
+      salary: 0,
+      basicExpenses: [],
+      currentDebts: [],
+      salaryInstallments: [],
+      pendingDebts: [],
+      archivedDebts: []
+    };
+
+    let editingExpenseId = null;
+    let editingCurrentDebtId = null;
+    let editingSalaryInstallmentId = null;
+    let editingArchivedDebtId = null;
+
+    const $ = id => document.getElementById(id);
+
+    function uid(prefix = 'id') {
+      return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat('ar-SA', {
+        maximumFractionDigits: 2
+      }).format(Number(value) || 0);
+    }
+
+    function getCurrentMonthString() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getMonthLabel() {
+      return new Intl.DateTimeFormat('ar', {
+        year: 'numeric',
+        month: 'long'
+      }).format(new Date());
+    }
+
+    function normalizeData(raw) {
+      const data = raw || {};
+
+      return {
+        salary: Number(data.salary) || 0,
+
+        basicExpenses: Array.isArray(data.basicExpenses)
+          ? data.basicExpenses.map(x => ({
+              id: x.id || uid('exp'),
+              name: String(x.name || ''),
+              amount: Number(x.amount) || 0
+            }))
+          : [],
+
+        currentDebts: Array.isArray(data.currentDebts)
+          ? data.currentDebts.map(x => ({
+              id: x.id || uid('debt'),
+              name: String(x.name || ''),
+              amount: Number(x.amount) || 0
+            }))
+          : [],
+
+        salaryInstallments: Array.isArray(data.salaryInstallments)
+          ? data.salaryInstallments.map(x => ({
+              id: x.id || uid('salaryInstallment'),
+              name: String(x.name || ''),
+              amount: Number(x.amount) || 0,
+              totalInstallments: Number(x.totalInstallments) || 0,
+              startDate: String(x.startDate || getCurrentMonthString())
+            }))
+          : [],
+
+        pendingDebts: Array.isArray(data.pendingDebts)
+          ? data.pendingDebts.map(x => ({
+              id: x.id || uid('pending'),
+              name: String(x.name || ''),
+              originalAmount: Number(x.originalAmount ?? x.amount) || 0,
+              amount: Number(x.amount ?? x.originalAmount) || 0,
+              paidAmount: Number(x.paidAmount) || 0,
+              payments: Array.isArray(x.payments)
+                ? x.payments.map(p => ({
+                    date: p.date || new Date().toISOString(),
+                    amount: Number(p.amount) || 0
+                  }))
+                : []
+            }))
+          : [],
+
+        archivedDebts: Array.isArray(data.archivedDebts)
+          ? data.archivedDebts.map(x => ({
+              id: x.id || uid('archived'),
+              name: String(x.name || ''),
+              amount: Number(x.amount) || 0,
+              originalAmount: Number(x.originalAmount ?? x.amount) || 0,
+              paidAmount: Number(x.paidAmount) || 0,
+              payments: Array.isArray(x.payments)
+                ? x.payments.map(p => ({
+                    date: p.date || new Date().toISOString(),
+                    amount: Number(p.amount) || 0
+                  }))
+                : []
+            }))
+          : []
+      };
+    }
+
+    function defaultData() {
+      return {
+        salary: 2500,
+
+        basicExpenses: [
+          { id: uid('exp'), name: 'إيجار', amount: 500 },
+          { id: uid('exp'), name: 'مواصلات', amount: 200 }
+        ],
+
+        currentDebts: [
+          { id: uid('debt'), name: 'قسط شهري', amount: 250 }
+        ],
+
+        salaryInstallments: [
+          {
+            id: uid('salaryInstallment'),
+            name: 'قسط جهاز',
+            amount: 150,
+            totalInstallments: 10,
+            startDate: getCurrentMonthString()
+          }
+        ],
+
+        pendingDebts: [
+          {
+            id: uid('pending'),
+            name: 'دين سابق',
+            originalAmount: 1000,
+            amount: 1000,
+            paidAmount: 0,
+            payments: []
+          }
+        ],
+
+        archivedDebts: []
+      };
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (saved) {
+          state = normalizeData(JSON.parse(saved));
+          return;
+        }
+
+        // دعم الإصدارات القديمة
+        const legacyKeys = [
+          'financeTrackerData_v4',
+          'financeTrackerData_v3',
+          'financeTrackerData_v2'
+        ];
+
+        for (const key of legacyKeys) {
+          const legacy = localStorage.getItem(key);
+          if (legacy) {
+            state = normalizeData(JSON.parse(legacy));
+            saveState();
+            return;
+          }
+        }
+
+        state = defaultData();
+        saveState();
+
+      } catch (error) {
+        console.warn('تعذر قراءة البيانات القديمة، تم استخدام بيانات افتراضية.', error);
+        state = defaultData();
+        saveState();
+      }
+    }
+
+    function getBasicExpensesTotal() {
+      return state.basicExpenses.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    }
+
+    function getCurrentDebtsTotal() {
+      return state.currentDebts.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    }
+
+    function getSalaryInstallmentStatus(item) {
+      const currentMonth = getCurrentMonthString();
+      const startMonth = item.startDate || currentMonth;
+
+      const [cy, cm] = currentMonth.split('-').map(Number);
+      const [sy, sm] = startMonth.split('-').map(Number);
+
+      if (!sy || !sm) {
+        return {
+          active: true,
+          started: true,
+          finished: false,
+          paidCount: 0,
+          remaining: item.totalInstallments || 0
+        };
+      }
+
+      const currentIndex = cy * 12 + cm;
+      const startIndex = sy * 12 + sm;
+
+      if (startIndex > currentIndex) {
+        return {
+          active: false,
+          started: false,
+          finished: false,
+          paidCount: 0,
+          remaining: item.totalInstallments || 0
+        };
+      }
+
+      const elapsed = currentIndex - startIndex + 1;
+      const total = Number(item.totalInstallments) || 0;
+
+      if (total > 0) {
+        const paidCount = Math.min(elapsed, total);
+        const remaining = Math.max(total - paidCount, 0);
+
+        return {
+          active: paidCount < total,
+          started: true,
+          finished: paidCount >= total,
+          paidCount,
+          remaining
+        };
+      }
+
+      return {
+        active: true,
+        started: true,
+        finished: false,
+        paidCount: elapsed,
+        remaining: 0
+      };
+    }
+
+    function getSalaryInstallmentsTotal() {
+      return state.salaryInstallments.reduce((sum, item) => {
+        const status = getSalaryInstallmentStatus(item);
+        return sum + (status.active ? Number(item.amount || 0) : 0);
+      }, 0);
+    }
+
+    function getCurrentMonthPaymentsFromList(list) {
+      const now = new Date();
+
+      return list.reduce((sum, debt) => {
+        if (!Array.isArray(debt.payments)) return sum;
+
+        return sum + debt.payments.reduce((s, payment) => {
+          const d = new Date(payment.date);
+
+          if (
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth()
+          ) {
+            return s + Number(payment.amount || 0);
+          }
+
+          return s;
+        }, 0);
+      }, 0);
+    }
+
+    function getPreviousPaymentsThisMonth() {
+      return (
+        getCurrentMonthPaymentsFromList(state.pendingDebts) +
+        getCurrentMonthPaymentsFromList(state.archivedDebts)
+      );
+    }
+
+    function getNet() {
+      return (
+        Number(state.salary || 0) -
+        getBasicExpensesTotal() -
+        getCurrentDebtsTotal() -
+        getSalaryInstallmentsTotal() -
+        getPreviousPaymentsThisMonth()
+      );
+    }
+
+    function renderStats() {
+      $('currentMonthLabel').textContent = getMonthLabel();
+
+      $('statSalary').textContent = money(state.salary);
+      $('statExpenses').textContent = money(getBasicExpensesTotal());
+      $('statCurrentDebts').textContent = money(getCurrentDebtsTotal());
+      $('statSalaryInstallments').textContent = money(getSalaryInstallmentsTotal());
+      $('statPreviousPayments').textContent = money(getPreviousPaymentsThisMonth());
+
+      const net = getNet();
+      $('statNet').textContent = money(net);
+
+      const card = $('netStatCard');
+
+      card.classList.remove('bg-emerald-600', 'bg-red-600', 'bg-slate-600');
+
+      if (net > 0) {
+        card.classList.add('bg-emerald-600');
+      } else if (net < 0) {
+        card.classList.add('bg-red-600');
+      } else {
+        card.classList.add('bg-slate-600');
+      }
+    }
+
+    function renderSalary() {
+      $('salaryInput').value = state.salary || '';
+    }
+
+    function renderExpenses() {
+      const container = $('expensesList');
+
+      if (!state.basicExpenses.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-receipt text-3xl mb-3"></i>
+            <div>لا توجد مصروفات أساسية حاليًا</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.basicExpenses.map(item => `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-200 rounded-xl p-4 mb-2">
+          <div>
+            <div class="font-bold">${escapeHTML(item.name)}</div>
+            <div class="text-sm text-sky-600 font-bold mt-1">
+              ${money(item.amount)}
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button class="btn btn-secondary edit-expense" data-id="${escapeHTML(item.id)}" type="button">
+              <i class="fa-solid fa-pen"></i>
+              تعديل
+            </button>
+
+            <button class="btn btn-danger delete-expense" data-id="${escapeHTML(item.id)}" type="button">
+              <i class="fa-solid fa-trash"></i>
+              حذف
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.edit-expense').forEach(btn => {
+        btn.addEventListener('click', () => editExpense(btn.dataset.id));
+      });
+
+      document.querySelectorAll('.delete-expense').forEach(btn => {
+        btn.addEventListener('click', () => deleteExpense(btn.dataset.id));
+      });
+    }
+
+    function renderCurrentDebts() {
+      const container = $('currentDebtsList');
+
+      if (!state.currentDebts.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-credit-card text-3xl mb-3"></i>
+            <div>لا توجد ديون حالية</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.currentDebts.map(item => `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-rose-100 bg-rose-50/40 rounded-xl p-4 mb-2">
+          <div>
+            <div class="font-bold">${escapeHTML(item.name)}</div>
+            <div class="text-sm text-rose-600 font-bold mt-1">
+              ${money(item.amount)} شهريًا
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button class="btn btn-secondary edit-current-debt" data-id="${escapeHTML(item.id)}" type="button">
+              <i class="fa-solid fa-pen"></i>
+              تعديل
+            </button>
+
+            <button class="btn btn-danger delete-current-debt" data-id="${escapeHTML(item.id)}" type="button">
+              <i class="fa-solid fa-trash"></i>
+              حذف
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.edit-current-debt').forEach(btn => {
+        btn.addEventListener('click', () => editCurrentDebt(btn.dataset.id));
+      });
+
+      document.querySelectorAll('.delete-current-debt').forEach(btn => {
+        btn.addEventListener('click', () => deleteCurrentDebt(btn.dataset.id));
+      });
+    }
+
+    function renderSalaryInstallments() {
+      const container = $('salaryInstallmentsList');
+
+      if (!state.salaryInstallments.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-file-invoice-dollar text-3xl mb-3"></i>
+            <div>لا توجد أقساط مخصومة من الراتب</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.salaryInstallments.map(item => {
+        const status = getSalaryInstallmentStatus(item);
+        const total = Number(item.totalInstallments) || 0;
+        const progress = total > 0
+          ? Math.min(100, (status.paidCount / total) * 100)
+          : 0;
+
+        let badge = '';
+
+        if (!status.started) {
+          badge = `
+            <span class="badge bg-blue-100 text-blue-700">
+              <i class="fa-solid fa-calendar"></i>
+              لم يبدأ بعد
+            </span>
+          `;
+        } else if (status.finished) {
+          badge = `
+            <span class="badge bg-emerald-100 text-emerald-700">
+              <i class="fa-solid fa-check"></i>
+              مكتمل
+            </span>
+          `;
+        } else {
+          badge = `
+            <span class="badge bg-violet-100 text-violet-700">
+              <i class="fa-solid fa-circle-check"></i>
+              يخصم هذا الشهر
+            </span>
+          `;
+        }
+
+        return `
+          <div class="border border-violet-100 rounded-2xl p-4 mb-3 bg-white">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+              <div class="flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="font-extrabold">${escapeHTML(item.name)}</h3>
+                  ${badge}
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                  <div class="bg-slate-50 rounded-xl p-3">
+                    <div class="text-xs text-slate-500">القسط الشهري</div>
+                    <div class="font-extrabold text-violet-700">${money(item.amount)}</div>
+                  </div>
+
+                  <div class="bg-slate-50 rounded-xl p-3">
+                    <div class="text-xs text-slate-500">بداية القسط</div>
+                    <div class="font-bold">${escapeHTML(item.startDate || '-')}</div>
+                  </div>
+
+                  <div class="bg-slate-50 rounded-xl p-3">
+                    <div class="text-xs text-slate-500">المسددة</div>
+                    <div class="font-extrabold">${total > 0 ? status.paidCount : 'مستمر'}</div>
+                  </div>
+
+                  <div class="bg-slate-50 rounded-xl p-3">
+                    <div class="text-xs text-slate-500">المتبقية</div>
+                    <div class="font-extrabold">${total > 0 ? status.remaining : '∞'}</div>
+                  </div>
+                </div>
+
+                ${total > 0 ? `
+                  <div class="mt-4">
+                    <div class="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>التقدم</span>
+                      <span>${Math.round(progress)}%</span>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-bar bg-violet-600" style="width:${progress}%"></div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div class="mt-3 text-sm">
+                  <span class="text-slate-500">الخصم من راتب هذا الشهر:</span>
+                  <strong class="text-violet-700">
+                    ${money(status.active ? item.amount : 0)}
+                  </strong>
+                </div>
+              </div>
+
+              <div class="flex lg:flex-col gap-2">
+                <button class="btn btn-secondary edit-salary-installment" data-id="${escapeHTML(item.id)}" type="button">
+                  <i class="fa-solid fa-pen"></i>
+                  تعديل
+                </button>
+
+                <button class="btn btn-danger delete-salary-installment" data-id="${escapeHTML(item.id)}" type="button">
+                  <i class="fa-solid fa-trash"></i>
+                  حذف
+                </button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.edit-salary-installment').forEach(btn => {
+        btn.addEventListener('click', () => editSalaryInstallment(btn.dataset.id));
+      });
+
+      document.querySelectorAll('.delete-salary-installment').forEach(btn => {
+        btn.addEventListener('click', () => deleteSalaryInstallment(btn.dataset.id));
+      });
+    }
+
+    function renderPaymentSelect() {
+      const select = $('paymentDebtSelect');
+      const amountInput = $('paymentAmount');
+      const submit = $('paymentSubmit');
+
+      select.innerHTML = `
+        <option value="">اختر الدين</option>
+        ${state.pendingDebts.map(debt => {
+          const remaining = Math.max(
+            Number(debt.originalAmount || debt.amount || 0) -
+            Number(debt.paidAmount || 0),
+            0
+          );
+
+          return `
+            <option value="${escapeHTML(debt.id)}">
+              ${escapeHTML(debt.name)} — المتبقي ${money(remaining)}
+            </option>
+          `;
+        }).join('')}
+      `;
+
+      const hasDebts = state.pendingDebts.length > 0;
+
+      amountInput.disabled = !hasDebts;
+      submit.disabled = !hasDebts;
+
+      if (!hasDebts) {
+        select.disabled = true;
+      } else {
+        select.disabled = false;
+      }
+    }
+
+    function renderPendingDebts() {
+      const container = $('pendingDebtsList');
+
+      if (!state.pendingDebts.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-circle-check text-3xl mb-3 text-emerald-500"></i>
+            <div class="font-bold">لا توجد ديون سابقة غير مسددة</div>
+            <div class="text-xs mt-1">يمكنك إضافة دين سابق جديد من الأسفل</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.pendingDebts.map(debt => {
+        const original = Number(debt.originalAmount || debt.amount || 0);
+        const paid = Number(debt.paidAmount || 0);
+        const remaining = Math.max(original - paid, 0);
+        const progress = original > 0 ? Math.min(100, (paid / original) * 100) : 0;
+
+        return `
+          <div class="border border-amber-100 bg-amber-50/30 rounded-2xl p-4 mb-3">
+
+            <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+
+              <div class="flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="font-extrabold">${escapeHTML(debt.name)}</h3>
+                  <span class="badge bg-amber-100 text-amber-700">
+                    غير مسدد
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                  <div class="bg-white rounded-xl p-3 border border-slate-100">
+                    <div class="text-xs text-slate-500">أصل الدين</div>
+                    <div class="font-extrabold">${money(original)}</div>
+                  </div>
+
+                  <div class="bg-white rounded-xl p-3 border border-slate-100">
+                    <div class="text-xs text-slate-500">المسدد</div>
+                    <div class="font-extrabold text-emerald-600">${money(paid)}</div>
+                  </div>
+
+                  <div class="bg-white rounded-xl p-3 border border-slate-100">
+                    <div class="text-xs text-slate-500">المتبقي</div>
+                    <div class="font-extrabold text-rose-600">${money(remaining)}</div>
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <div class="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>نسبة السداد</span>
+                    <span>${Math.round(progress)}%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-bar bg-amber-500" style="width:${progress}%"></div>
+                  </div>
+                </div>
+
+                ${
+                  Array.isArray(debt.payments) && debt.payments.length
+                    ? `
+                      <details class="mt-4">
+                        <summary class="cursor-pointer font-bold text-sm text-slate-600">
+                          <i class="fa-solid fa-clock-rotate-left ml-1"></i>
+                          سجل الدفعات (${debt.payments.length})
+                        </summary>
+
+                        <div class="mt-3 space-y-2">
+                          ${debt.payments.slice().reverse().map(payment => `
+                            <div class="flex justify-between bg-white rounded-lg border border-slate-100 p-2 text-sm">
+                              <span>${new Date(payment.date).toLocaleDateString('ar')}</span>
+                              <strong>${money(payment.amount)}</strong>
+                            </div>
+                          `).join('')}
+                        </div>
+                      </details>
+                    `
+                    : ''
+                }
+              </div>
+
+              <button
+                class="btn btn-danger delete-pending-debt"
+                data-id="${escapeHTML(debt.id)}"
+                type="button"
+              >
+                <i class="fa-solid fa-trash"></i>
+                حذف
+              </button>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.delete-pending-debt').forEach(btn => {
+        btn.addEventListener('click', () => deletePendingDebt(btn.dataset.id));
+      });
+    }
+
+    function renderArchivedDebts() {
+      const container = $('archivedDebtsList');
+
+      if (!state.archivedDebts.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-box-open text-3xl mb-3"></i>
+            <div>الأرشيف فارغ</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.archivedDebts.map(debt => {
+        const total = Number(debt.originalAmount || debt.amount || 0);
+        const paid = Number(debt.paidAmount || total);
+        const payments = Array.isArray(debt.payments) ? debt.payments : [];
+
+        return `
+          <div class="border border-emerald-100 bg-emerald-50/30 rounded-2xl p-4 mb-3">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+              <div class="flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="font-extrabold">${escapeHTML(debt.name)}</h3>
+                  <span class="badge bg-emerald-100 text-emerald-700">
+                    <i class="fa-solid fa-check"></i>
+                    مسدد بالكامل
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+                  <div class="bg-white rounded-xl p-3 border border-slate-100">
+                    <div class="text-xs text-slate-500">قيمة الدين</div>
+                    <div class="font-extrabold">${money(total)}</div>
+                  </div>
+
+                  <div class="bg-white rounded-xl p-3 border border-slate-100">
+                    <div class="text-xs text-slate-500">إجمالي المسدد</div>
+                    <div class="font-extrabold text-emerald-600">${money(paid)}</div>
+                  </div>
+
+                  <div class="bg-white rounded-xl p-3 border border-slate-100">
+                    <div class="text-xs text-slate-500">عدد الدفعات</div>
+                    <div class="font-extrabold">${payments.length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <button class="btn btn-secondary edit-archived-debt" data-id="${escapeHTML(debt.id)}" type="button">
+                  <i class="fa-solid fa-pen"></i>
+                  تعديل
+                </button>
+
+                <button class="btn btn-danger delete-archived-debt" data-id="${escapeHTML(debt.id)}" type="button">
+                  <i class="fa-solid fa-trash"></i>
+                  حذف
+                </button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.edit-archived-debt').forEach(btn => {
+        btn.addEventListener('click', () => editArchivedDebt(btn.dataset.id));
+      });
+
+      document.querySelectorAll('.delete-archived-debt').forEach(btn => {
+        btn.addEventListener('click', () => deleteArchivedDebt(btn.dataset.id));
+      });
+    }
+
+    function renderAll() {
+      renderSalary();
+      renderStats();
+      renderExpenses();
+      renderCurrentDebts();
+      renderSalaryInstallments();
+      renderPaymentSelect();
+      renderPendingDebts();
+      renderArchivedDebts();
+    }
+
+    function showToast(message, type = 'success') {
+      const container = $('toastContainer');
+
+      const styles = {
+        success: 'bg-emerald-600',
+        error: 'bg-red-600',
+        warning: 'bg-amber-500',
+        info: 'bg-blue-600'
+      };
+
+      const icons = {
+        success: 'fa-check',
+        error: 'fa-xmark',
+        warning: 'fa-triangle-exclamation',
+        info: 'fa-info'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${styles[type] || styles.info} text-white rounded-xl px-4 py-3 shadow-xl flex items-center gap-3`;
+
+      toast.innerHTML = `
+        <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+          <i class="fa-solid ${icons[type] || icons.info}"></i>
+        </span>
+        <span class="font-bold text-sm">${escapeHTML(message)}</span>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+
+        setTimeout(() => toast.remove(), 250);
+      }, 3000);
+    }
+
+    // Salary
+    $('salaryForm').addEventListener('submit', e => {
+      e.preventDefault();
+
+      const value = Number($('salaryInput').value);
+
+      if (!Number.isFinite(value) || value < 0) {
+        showToast('أدخل راتبًا صحيحًا.', 'error');
+        return;
+      }
+
+      state.salary = value;
+      saveState();
+      renderAll();
+      showToast('تم حفظ الراتب.');
+    });
+
+    // Expenses
+    $('expenseForm').addEventListener('submit', e => {
+      e.preventDefault();
+
+      const name = $('expenseName').value.trim();
+      const amount = Number($('expenseAmount').value);
+
+      if (!name || !Number.isFinite(amount) || amount <= 0) {
+        showToast('أدخل اسم المصروف والمبلغ بشكل صحيح.', 'error');
+        return;
+      }
+
+      if (editingExpenseId) {
+        const item = state.basicExpenses.find(x => x.id === editingExpenseId);
+
+        if (item) {
+          item.name = name;
+          item.amount = amount;
+        }
+
+        editingExpenseId = null;
+        e.target.querySelector('button').innerHTML = `
+          <i class="fa-solid fa-plus"></i>
+          إضافة
+        `;
+
+        showToast('تم تعديل المصروف.');
+      } else {
+        state.basicExpenses.push({
+          id: uid('exp'),
+          name,
+          amount
+        });
+
+        showToast('تمت إضافة المصروف.');
+      }
+
+      e.target.reset();
+      saveState();
+      renderAll();
+    });
+
+    function editExpense(id) {
+      const item = state.basicExpenses.find(x => x.id === id);
+      if (!item) return;
+
+      editingExpenseId = id;
+
+      $('expenseName').value = item.name;
+      $('expenseAmount').value = item.amount;
+
+      $('expenseForm').querySelector('button').innerHTML = `
+        <i class="fa-solid fa-check"></i>
+        حفظ التعديل
+      `;
+
+      $('expenseName').focus();
+    }
+
+    function deleteExpense(id) {
+      const item = state.basicExpenses.find(x => x.id === id);
+      if (!item) return;
+
+      if (!confirm(`هل تريد حذف المصروف "${item.name}"؟`)) return;
+
+      state.basicExpenses = state.basicExpenses.filter(x => x.id !== id);
+
+      saveState();
+      renderAll();
+      showToast('تم حذف المصروف.', 'success');
+    }
+
+    // Current Debts
+    $('currentDebtForm').addEventListener('submit', e => {
+      e.preventDefault();
+
+      const name = $('currentDebtName').value.trim();
+      const amount = Number($('currentDebtAmount').value);
+
+      if (!name || !Number.isFinite(amount) || amount <= 0) {
+        showToast('أدخل اسم الدين والقسط بشكل صحيح.', 'error');
+        return;
+      }
+
+      if (editingCurrentDebtId) {
+        const item = state.currentDebts.find(x => x.id === editingCurrentDebtId);
+
+        if (item) {
+          item.name = name;
+          item.amount = amount;
+        }
+
+        editingCurrentDebtId = null;
+
+        e.target.querySelector('button').innerHTML = `
+          <i class="fa-solid fa-plus"></i>
+          إضافة
+        `;
+
+        showToast('تم تعديل الدين الحالي.');
+      } else {
+        state.currentDebts.push({
+          id: uid('debt'),
+          name,
+          amount
+        });
+
+        showToast('تمت إضافة الدين الحالي.');
+      }
+
+      e.target.reset();
+      saveState();
+      renderAll();
+    });
+
+    function editCurrentDebt(id) {
+      const item = state.currentDebts.find(x => x.i
